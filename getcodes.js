@@ -12,10 +12,14 @@ function getCodes() {
 function parseCodes(htmldata) {
   var cheerio = require('cheerio'), $ = cheerio.load(htmldata);
   var tds = $("td.tal").each(function(i, elem) {
-    console.log($(this).children().attr('onclick'));
+    var onclick = $(this).children().attr('onclick').split("'");
+    var standard_code = onclick[5];
+    var simple_code = onclick[1];
+    var name = onclick[3];
+    console.log();
   });
-
 }
+
 /*
 function parseCodes(htmldata) {
   var xpath = require('xpath');
