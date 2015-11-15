@@ -4,7 +4,7 @@ module.exports = {
   httpgetrequest: httpgetrequest
 }
 
-function httpgetrequest(host, path, cb) {
+function httpgetrequest(host, path, cb, cbparam) {
   var http = require('http');
   var options = {
     host: host,
@@ -17,7 +17,7 @@ function httpgetrequest(host, path, cb) {
       str += chunk;
     });
     res.on('end', function() {
-      cb(str);
+      cb(str, cbparam);
     });
   });
   request.on('socket', function(socket) {
@@ -30,7 +30,7 @@ function httpgetrequest(host, path, cb) {
   request.on('error', function(e) {
     console.log("Got error: " + e.message);
     request.abort();
-    setTimeout(function(){httpgetrequest(host, path, cb);}, 1000);
+    setTimeout(function(){httpgetrequest(host, path, cb, cbparam);}, 1000);
   });
   request.end();
 }

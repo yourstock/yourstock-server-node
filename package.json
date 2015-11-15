@@ -6,7 +6,6 @@
     "express": "*",
     "body-parser": "*",
     "mongodb": "*",
-    "mongoskin": "*",
     "http": "*",
     "htmlparser2": "*",
     "cheerio": "*"
