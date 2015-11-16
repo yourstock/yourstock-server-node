@@ -2,7 +2,8 @@
 
 module.exports = {
   getcodes: getCodes,
-  getyearvalues: getYearValues
+  getyearvalues: getYearValues,
+  calculateminmax: calculateMinMax
 }
 
 function getCodes() {
@@ -26,8 +27,9 @@ function parseCodes(htmldata, param) {
                     name: name};
   });
   var mongodb = require('./mongodb.js');
-  mongodb.removeall('codes');
-  mongodb.insertmany('codes', sip_codes);
+  mongodb.removeall('codes', function() {
+    mongodb.insertmany('codes', sip_codes);
+  });
 }
 
 function getYearValues() {
@@ -70,7 +72,68 @@ function parseYearValues(htmldata, codes) {
                     tot_tr_vl: $(this).attr('tot_tr_vl')};
   });
   var mongodb = require('./mongodb.js');
-  mongodb.remove('price_history',{code: code});
-  mongodb.insertmany('price_history', date_item);
-  getYearValuesOfItem(codes);
+  mongodb.remove('price_history', {code: code}, function() {
+    mongodb.insertmany('price_history', date_item);
+    getYearValuesOfItem(codes);
+  });
+}
+
+function calculateMinMax() {
+  var mongodb = require('./mongodb.js');
+  var year_begin = new Date();
+  year_begin.setDate(year_begin.getDate() - 365);
+  var month_begin = new Date();
+  month_begin.setDate(month_begin.getDate() - 30);
+  var week_begin = new Date();
+  week_begin.setDate(week_begin.getDate() - 7);
+  mongodb.removeall('history_min_max', function() {
+    mongodb.findall('price_history', function(history) {
+      // at most 2000 * 365 items
+      var minmaxItem = {};
+      for (i in history) {
+        var code = history[i].code;
+        if (minmaxItem[code] == undefined) {
+          minmaxItem[code] = {
+            max_year: 0,
+            min_year: 99999999999,
+            max_month: 0,
+            min_month: 99999999999,
+            max_week: 0,
+            min_week: 99999999999
+          };
+        }
+        if (history[i].date > year_begin) {
+          if (minmaxItem[code].max_year < history[i].hg_pr) {
+            minmaxItem[code].max_year = history[i].hg_pr;
+          }
+          if (minmaxItem[code].min_year > history[i].lw_pr) {
+            minmaxItem[code].min_year = history[i].lw_pr;
+          }
+        }
+        if (history[i].date > month_begin) {
+          if (minmaxItem[code].max_month < history[i].hg_pr) {
+            minmaxItem[code].max_month = history[i].hg_pr;
+          }
+          if (minmaxItem[code].min_month > history[i].lw_pr) {
+            minmaxItem[code].min_month = history[i].lw_pr;
+          }
+        }
+        if (history[i].date > week_begin) {
+          if (minmaxItem[code].max_week < history[i].hg_pr) {
+            minmaxItem[code].max_week = history[i].hg_pr;
+          }
+          if (minmaxItem[code].min_week > history[i].lw_pr) {
+            minmaxItem[code].min_week = history[i].lw_pr;
+          }
+        }
+      }
+      var resultArr = [];
+      for (i in minmaxItem) {
+        minmaxItem[i].code = i;
+        resultArr.push(minmaxItem[i]);
+      }
+      console.log("ResultArr length: " + resultArr.length);
+      mongodb.insertmany('history_min_max', resultArr);
+    });
+  });
 }

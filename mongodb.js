@@ -8,20 +8,22 @@ module.exports = {
   find: findSpecific
 }
 
-function removeAll(collection) {
-  removeSpecific(collection, null);
+function removeAll(collection, cb) {
+  removeSpecific(collection, null, cb);
 }
 
-function removeSpecific(collection, query) {
+function removeSpecific(collection, query, cb) {
   var MongoClient = require('mongodb').MongoClient;
   var assert = require('assert');
 
   var url = 'mongodb://localhost:27017/sip';
   MongoClient.connect(url, function(err, db) {
     assert.equal(null, err);
-    db.collection(collection).deleteMany(query);
-    db.close();
-    console.log("Mongodb remove success");
+    db.collection(collection).deleteMany(query, function() {
+      db.close();
+      console.log("Mongodb remove success");
+      cb();
+    });
   });
 }
  

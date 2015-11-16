@@ -21,7 +21,7 @@ function httpgetrequest(host, path, cb, cbparam) {
     });
   });
   request.on('socket', function(socket) {
-    socket.setTimeout(1000);
+    socket.setTimeout(500);
     socket.on('timeout', function() {
       request.abort();
     });
@@ -30,7 +30,7 @@ function httpgetrequest(host, path, cb, cbparam) {
   request.on('error', function(e) {
     console.log("Got error: " + e.message);
     request.abort();
-    setTimeout(function(){httpgetrequest(host, path, cb, cbparam);}, 100);
+    setTimeout(function(){httpgetrequest(host, path, cb, cbparam);}, 50);
   });
   request.end();
 }

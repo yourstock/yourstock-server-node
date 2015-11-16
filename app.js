@@ -40,4 +40,13 @@ app.get('/history', function(req, res) {
   });
 });
 
+app.get('/history_all', function(req, res) {
+  mongodb.findall('history_min_max', function(history) {
+    for (i in history) {
+      delete history[i]._id;
+    }
+    res.json(history);
+  });
+});
+
 app.listen(3000);
