@@ -33,26 +33,32 @@ function parseCodes(htmldata, param) {
 function getYearValues() {
   var mongodb = require('./mongodb.js');
   mongodb.findall('codes', function(codes) {
-    for (codeItem in codes) {
-      getYearValuesOfItem(codes[codeItem].standard_code);
-    }
+    getYearValuesOfItem(codes);
   });
 }
 
-function getYearValuesOfItem(code) {
+function getYearValuesOfItem(codes) {
+  if (codes.length == 0) {
+    console.log("Crawl all data finished");
+    return;
+  }
   var httprequest = require('./httprequest.js').httpgetrequest;
   var now = new Date();
   var today = '' + now.getFullYear() + (now.getMonth() + 1) + now.getDate();
+  var code = codes[0].standard_code;
   var targetPath = "/por_kor/m2/m2_1/m2_1_4/JHPKOR02001_04_chart.jsp?param=" + code + ",20141101," + today + ",s"
   console.log(targetPath);
-  httprequest("krx.co.kr", targetPath, parseYearValues, code);
+  httprequest("krx.co.kr", targetPath, parseYearValues, codes);
 }
 
-function parseYearValues(htmldata, code) {
+function parseYearValues(htmldata, codes) {
   htmldata = htmldata.trim();
-  console.log(htmldata);
+  //console.log(htmldata);
+  console.log("Data retrieved " + codes.length + " items left");
   var cheerio = require('cheerio'), $ = cheerio.load(htmldata);
   var date_item = [];
+  var code = codes[0].standard_code;
+  codes = codes.slice(1);
   var tds = $("item").each(function(i, elem) {
     date_item[i] = {code: code,
                     date: new Date($(this).attr('work_dt')),
@@ -64,5 +70,7 @@ function parseYearValues(htmldata, code) {
                     tot_tr_vl: $(this).attr('tot_tr_vl')};
   });
   var mongodb = require('./mongodb.js');
+  mongodb.remove('price_history',{code: code});
   mongodb.insertmany('price_history', date_item);
+  getYearValuesOfItem(codes);
 }
