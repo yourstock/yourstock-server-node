@@ -2,14 +2,14 @@
 
 ## How to install (On ubuntu 14.04)
 
-### Install latest `Node.js`
+#### Install latest `Node.js`
 Add `Node.js` repository
 ```
 $ curl -sL https://deb.nodesource.com/setup_4.x | sudo -E bash -
 $ sudo apt-get install -y nodejs
 ```
 
-### Install prerequisites
+#### Install prerequisites
 ```
 $ sudo npm install -g node-gyp
 $ sudo npm install -g forever
@@ -18,13 +18,13 @@ $ cd yourstock-server-node
 $ npm install
 ```
 
-### Install `mongodb`
+#### Install `mongodb`
 ```
 $ sudo apt-get install mongodb
 ```
 
 
-## Crawl stock data
+#### Crawl stock data
 We need to implement direct cli but currently commends should run on `node` console
 ```
 $ node
@@ -34,7 +34,7 @@ $ node
 > crawler.calclulateminmax()
 ```
 
-## Run app server
+#### Run app server
 ```
 $ cd yourstock-server-node
 $ forever start app.js
@@ -42,14 +42,14 @@ $ forever start app.js
 
 ## APIs
 Currently everything is serviced on port `3000`
-### Retrieve all Company names and codes
+#### Retrieve all Company names and codes
 `http://hostname:3000/codes`
 
-### Retrieve one company's data for a range
+#### Retrieve one company's data for a range
 `http://hostname:3000/history?code=[standard_code]&range=[date_from_today]`
 
 This returns everyday's price and min/max price for specified date range
 
 
-### Retrieve every company's min/max price for a year/month/week
+#### Retrieve every company's min/max price for a year/month/week
 `http://45.32.18.89:3000/history_all`
