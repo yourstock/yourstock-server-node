@@ -1,7 +1,7 @@
 var http = require('http');
 var codes = '';
 var curData = '';
-var objs = [];
+
 
 function getCodes(cb) {
 
@@ -31,27 +31,32 @@ function getCodes(cb) {
 }
 
 function getCurrentPrices(codes) {
-		for(i in codes) {
-		var options = {
+	for(i in codes) 
+		getPrice(codes[i]);
+	
+}
+
+function getPrice(id) {
+
+	var options = {
 			host: "api.finance.naver.com",
 			path: "/service/itemSummary.nhn?itemcode=" + codes[i],
 			port: '80',
+			id: codes[i]
 		};
 		var curCode = codes[i];
 
-		http.request(options).on('response', function(response) {
+		http.get(options, function(response) {
+
 			response.on('data', function(chunk) {
 				curData = chunk;
 		});
-			console.log(options);
 			response.on('end', function () {
-				objs.push(JSON.parse(curData));
-				console.log("CODE: " + options['path'] + " : " + objs[objs.length-1]['now']);
+				var obj = JSON.parse(curData);
+				console.log("CODE: " + options.id + " : " + obj.now);
 
 			});
 		}).end();
-		  
-	}
 }
 
 getCodes(getCurrentPrices);
