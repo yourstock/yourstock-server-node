@@ -52,4 +52,4 @@ This returns everyday's price and min/max price for specified date range
 
 
 #### Retrieve every company's min/max price for a year/month/week
-`http://45.32.18.89:3000/history_all`
+`http://hostname:3000/history_all`
