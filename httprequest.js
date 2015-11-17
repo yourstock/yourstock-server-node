@@ -21,7 +21,7 @@ function httpgetrequest(host, path, cb, cbparam) {
     });
   });
   request.on('socket', function(socket) {
-    socket.setTimeout(500);
+    socket.setTimeout(5000);
     socket.on('timeout', function() {
       request.abort();
     });
