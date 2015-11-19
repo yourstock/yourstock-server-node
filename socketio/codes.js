@@ -36,6 +36,7 @@ function getCodes(cb) {
 function getCurrentPrices(codes, fullCode) {
 	for(i in codes) {
 		//getPrice(codes[i]);
+		//console.log(fullCode[i]);
 		getLowestPrice(fullCode[i])
 	}
 	
@@ -80,10 +81,17 @@ function getLowestPrice(id) {
 		
 			response.on('end', function () {
 				var obj = JSON.parse(historyData);
-				console.log("CODE: " + options.ID + " : " + obj.history[0].code + " : ");
+				console.log("CODE: " + options.ID + " : " + obj.lowest + " : ");
 
 			});
-		}).end();		
+//			response.on('error', function(e) {
+  //  			console.log("Got error: " + e.message);
+	//	    request.abort();
+    	//		setTimeout(getLowestPrice(id), 50);
+  	//		});
+		}).on('error', function(e) {
+			setTimeout(getLowestPrice(id), 50);
+		});	
 
 
 }
@@ -137,7 +145,7 @@ function scrapeDaum(err, response, body) {
 	console.log(object);
 }
 
-crawler();
+//crawler();
 getCodes(getCurrentPrices);
 
 
