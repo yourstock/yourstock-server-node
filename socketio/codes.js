@@ -1,9 +1,8 @@
 var http = require('http');
 var codes = '';
-var fullcodes = '';
 var curData = '';
 var object = [];
-//var historyData = '';
+var minMaxData;
 
 
 function getCodes(cb) {
@@ -24,23 +23,33 @@ function getCodes(cb) {
 			var obj = JSON.parse(codes);
 			codes = [];
 			fullcodes = [];
-			for(i in obj) {
-				codes.push(obj[i]['simple_code'].substr(1));
-				fullcodes.push(obj[i]['standard_code']);
-			}
-			cb(codes, fullcodes);
+			for(i in obj)
+				codes.push({ code: obj[i]['simple_code'].substr(1), fullcode: obj[i]['standard_code']});
+			cb(codes);;
 		});
 	}).end();
 }
 
-function getCurrentPrices(codes, fullCode) {
-	for(i in codes) {
-		//getPrice(codes[i]);
-		//console.log(fullCode[i]);
-		getLowestPrice(fullCode[i])
-	}
+function getCurrentPrices(codes) {
+	
+	getLowestPrice();
 	
 }
+
+
+function getFullCode(codes, code) {
+
+	for (var i = 0, codelength = codes.length; i < codelength; i++)
+		if(codes[i].code == code)
+			return codes[i].fullcode;
+}
+
+function getCode(codes, fullcode) {
+	for (var i = 0, codelength = codes.length; i < codelength; i++)
+		if(codes[i].fullcode == fullcode)
+			return codes[i].code;
+}	
+
 
 function getPrice(id) {
 
@@ -64,9 +73,9 @@ function getPrice(id) {
 		}).end();
 }
 
-function getLowestPrice(id) {
+function getLowestPrice() {
 
-		var options = {
+/*		var options = {
 			host: "45.32.18.89",
 			path: '/history?code=' + id + '&range=365',
 			port: '3000',
@@ -91,62 +100,82 @@ function getLowestPrice(id) {
   	//		});
 		}).on('error', function(e) {
 			setTimeout(getLowestPrice(id), 50);
-		});	
+		});	*/
+
+	var mongodb = require("../mongodb.js");
+
+	mongodb.findall("history_min_max", function (history) {
+		minMaxData = history;
+	});		
 
 
 }
 
 function crawler(cb) {
 	var request = require('request');
-	var codes, price, company, change, object = [];
+	var codes, price, company, change;
+	var urls = [
+		'http://finance.daum.net/quote/all.daum?type=S&stype=P',
+		'http://finance.daum.net/quote/all.daum?type=S&stype=Q'
+	];
+	var length = urls.length;
+	var url;
 
-	request({
-		method: 'GET',
-		url: 'http://finance.daum.net/quote/all.daum?type=S&stype=P'
-	}, scrapeDaum);	
+	function execRequest(idx) {
+		url = urls[idx];
+		request(url, function(err, response, body) {
+			var cheerio = require('cheerio');
+
+			if(err) return console.error(err);
+
+			$ = cheerio.load(body);
+			$("table.gTable tr").each(function() {
+
+				company = $("td", this).eq(0).text();
+				if(company) {
+					price = $("td",this).eq(1).text();
+					change = $("td",this).eq(2).text();
+					code = $('a', this).eq(0).attr('href')
+					code = code.substr(code.lastIndexOf('=')+1);
+
+				if(code.length < 7) 
+					object.push({ company : company, price:price, change:change, code:code });	
+				}
+				
+				company = $("td", this).eq(3).text();
+		
+				if(company) {
+					price = $("td",this).eq(4).text();
+					change = $("td",this).eq(5).text();
+					code = $('a', this).eq(1).attr('href')
+					code = code.substr(code.lastIndexOf('=')+1);
+
+				if(code.length < 7)	
+					object.push({ company : company, price:price, change:change, code:code });
+				}
+			});
+			if(idx+1<length) 
+				setTimeout(function() {
+					execRequest(idx+1)}, 1000);
+			else
+				return cb();
+		});
+	}
 	
-	request({
-		method: 'GET',
-		url: 'http://finance.daum.net/quote/all.daum?type=S&stype=Q'
-	}, scrapeDaum);	
+	execRequest(0);
+	
 
 }
 
-function scrapeDaum(err, response, body) {
-	var cheerio = require('cheerio');
-
-	if(err) return console.error(err);
-
-	$ = cheerio.load(body);
-	$("table.gTable tr").each(function() {
-
-		company = $("td", this).eq(0).text();
-		if(company) {
-			price = $("td",this).eq(1).text();
-			change = $("td",this).eq(2).text();
-			code = $('a', this).eq(0).attr('href')
-			code = code.substr(code.lastIndexOf('=')+1);
-
-			if(code.length < 7) 
-				object.push({ company : company, price:price, change:change, code:code });	
-		}
-			
-		company = $("td", this).eq(3).text();
-		if(company) {
-			price = $("td",this).eq(4).text();
-			change = $("td",this).eq(5).text();
-			code = $('a', this).eq(1).attr('href')
-			code = code.substr(code.lastIndexOf('=')+1);
-
-			if(code.length < 7)	
-				object.push({ company : company, price:price, change:change, code:code });
-		}
-	});	
+function compare(type) {
 	console.log(object);
+	console.log(minMaxData);
 }
 
-//crawler();
 getCodes(getCurrentPrices);
+crawler(function () { 
+	compare(1);  
+});
 
 
 
