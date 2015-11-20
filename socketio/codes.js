@@ -34,6 +34,11 @@ function getCurrentPrices(codes) {
 	
 	getLowestPrice();
 	
+	crawler(function () { 
+	compare(1);  
+	});
+
+	
 }
 
 
@@ -113,7 +118,7 @@ function getLowestPrice() {
 
 function crawler(cb) {
 	var request = require('request');
-	var codes, price, company, change;
+	var codes, price, company, change, fullcode;
 	var urls = [
 		'http://finance.daum.net/quote/all.daum?type=S&stype=P',
 		'http://finance.daum.net/quote/all.daum?type=S&stype=Q'
@@ -137,9 +142,9 @@ function crawler(cb) {
 					change = $("td",this).eq(2).text();
 					code = $('a', this).eq(0).attr('href')
 					code = code.substr(code.lastIndexOf('=')+1);
-
+					fullcode = getCode(codes, code);
 				if(code.length < 7) 
-					object.push({ company : company, price:price, change:change, code:code });	
+					object.push({ company : company, price:price, change:change, code:code, fullcode:fullcode});	
 				}
 				
 				company = $("td", this).eq(3).text();
@@ -149,9 +154,10 @@ function crawler(cb) {
 					change = $("td",this).eq(5).text();
 					code = $('a', this).eq(1).attr('href')
 					code = code.substr(code.lastIndexOf('=')+1);
+					fullcode = getCode(codes, code);
 
 				if(code.length < 7)	
-					object.push({ company : company, price:price, change:change, code:code });
+					object.push({ company : company, price:price, change:change, code:code, fullcode:fullcode });
 				}
 			});
 			if(idx+1<length) 
@@ -168,14 +174,13 @@ function crawler(cb) {
 }
 
 function compare(type) {
+	for (i in object){
+	//	if(object[i][code])
+	}
 	console.log(object);
-	console.log(minMaxData);
+	//console.log(minMaxData);
 }
 
 getCodes(getCurrentPrices);
-crawler(function () { 
-	compare(1);  
-});
-
 
 
