@@ -35,7 +35,7 @@ function getCurrentPrices(codes) {
 	getLowestPrice();
 	
 	crawler(function () { 
-	compare(1);  
+	compare(0);  
 	});
 
 	
@@ -44,15 +44,18 @@ function getCurrentPrices(codes) {
 
 function getFullCode(codes, code) {
 
-	for (var i = 0, codelength = codes.length; i < codelength; i++)
-		if(codes[i].code == code)
+	for (var i = 0, codelength = codes.length; i < codelength; i++) {
+		if(codes[i].code == code){
 			return codes[i].fullcode;
+		}
+	}
 }
 
 function getCode(codes, fullcode) {
-	for (var i = 0, codelength = codes.length; i < codelength; i++)
+	for (var i = 0, codelength = codes.length; i < codelength; i++) 
 		if(codes[i].fullcode == fullcode)
 			return codes[i].code;
+	
 }	
 
 
@@ -118,7 +121,7 @@ function getLowestPrice() {
 
 function crawler(cb) {
 	var request = require('request');
-	var codes, price, company, change, fullcode;
+	var code, price, company, change, fullcode;
 	var urls = [
 		'http://finance.daum.net/quote/all.daum?type=S&stype=P',
 		'http://finance.daum.net/quote/all.daum?type=S&stype=Q'
@@ -142,7 +145,7 @@ function crawler(cb) {
 					change = $("td",this).eq(2).text();
 					code = $('a', this).eq(0).attr('href')
 					code = code.substr(code.lastIndexOf('=')+1);
-					fullcode = getCode(codes, code);
+					fullcode = getFullCode(codes, code);
 				if(code.length < 7) 
 					object.push({ company : company, price:price, change:change, code:code, fullcode:fullcode});	
 				}
@@ -154,7 +157,7 @@ function crawler(cb) {
 					change = $("td",this).eq(5).text();
 					code = $('a', this).eq(1).attr('href')
 					code = code.substr(code.lastIndexOf('=')+1);
-					fullcode = getCode(codes, code);
+					fullcode = getFullCode(codes, code);
 
 				if(code.length < 7)	
 					object.push({ company : company, price:price, change:change, code:code, fullcode:fullcode });
@@ -173,12 +176,20 @@ function crawler(cb) {
 
 }
 
-function compare(type) {
+function compare(percentage) {
+	var theObj = [];
 	for (i in object){
-	//	if(object[i][code])
+		for(j in minMaxData) {
+			if(object[i].fullcode == minMaxData[j].code && parseInt(object[i].price.replace(/,/g,"")) < ((1+percentage)*parseInt(minMaxData[j].min_year))) {
+//				console.log(parseInt(object[i].price.replace(/,/g, "")));
+				theObj.push({ obj:object[i], data:minMaxData[j] });
+			}
+
+		}
 	}
-	console.log(object);
-	//console.log(minMaxData);
+	console.log(theObj);
+	//console.log(object);
+	//	console.log(minMaxData);
 }
 
 getCodes(getCurrentPrices);
