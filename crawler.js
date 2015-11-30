@@ -92,6 +92,8 @@ function calculateMinMax() {
       var minmaxItem = {};
       for (i in history) {
         var code = history[i].code;
+        history[i].hg_pr = parseInt(history[i].hg_pr);
+        history[i].lw_pr = parseInt(history[i].lw_pr);
         if (minmaxItem[code] == undefined) {
           minmaxItem[code] = {
             max_year: 0,

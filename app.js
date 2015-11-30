@@ -26,6 +26,8 @@ app.get('/history', function(req, res) {
     for (i in history) {
       delete history[i]._id;
       delete history[i].date;
+      history[i].hg_pr = parseInt(history[i].hg_pr)
+      history[i].lw_pr = parseInt(history[i].lw_pr)
       if (highest < history[i].hg_pr) {
         highest = history[i].hg_pr;
       }
