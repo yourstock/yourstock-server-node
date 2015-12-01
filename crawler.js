@@ -113,6 +113,10 @@ function calculateMinMax() {
         var code = history[i].code;
         history[i].hg_pr = parseInt(history[i].hg_pr);
         history[i].lw_pr = parseInt(history[i].lw_pr);
+        if (history[i].hg_pr == 0) {
+          // invalid data
+          continue;
+        }
         if (minmaxItem[code] == undefined) {
           minmaxItem[code] = {};
           minmaxItem[code].data = [];
