@@ -8,10 +8,15 @@ module.exports = {
 
 function getCodes() {
   var httprequest = require('./httprequest.js').httpgetrequest;
-  // all
-  //httprequest("krx.co.kr", "/por_kor/popup/JHPKOR13008.jsp?charOrder=0&mkt_typ=S&isu_cd=&shrt_isu_cd=&kor_isu_nm=&indx_ind_cd=&market_gubun=allVal&word=&x=27&y=10", parseCodes, 0);
-  // Kospi(?) only
-  httprequest("krx.co.kr", "/por_kor/popup/JHPKOR13008.jsp?charOrder=0&mkt_typ=S&isu_cd=&shrt_isu_cd=&kor_isu_nm=&indx_ind_cd=&market_gubun=kospiVal&word=&x=27&y=10", parseCodes, 0);
+  var mongodb = require('./mongodb.js');
+  mongodb.removeall('codes', function() {
+    // all
+    //httprequest("krx.co.kr", "/por_kor/popup/JHPKOR13008.jsp?charOrder=0&mkt_typ=S&isu_cd=&shrt_isu_cd=&kor_isu_nm=&indx_ind_cd=&market_gubun=allVal&word=&x=27&y=10", parseCodes, 0);
+    // Kospi(?) only
+    httprequest("krx.co.kr", "/por_kor/popup/JHPKOR13008.jsp?charOrder=0&mkt_typ=S&isu_cd=&shrt_isu_cd=&kor_isu_nm=&indx_ind_cd=&market_gubun=kospiVal&word=&x=27&y=10", parseCodes, 0);
+    // Kosdaq only
+    httprequest("krx.co.kr", "/por_kor/popup/JHPKOR13008.jsp?charOrder=0&mkt_typ=S&isu_cd=&shrt_isu_cd=&kor_isu_nm=&indx_ind_cd=&market_gubun=kosdaqVal&word=&x=27&y=10", parseCodes, 0);
+  });
 }
 
 function parseCodes(htmldata, param) {
@@ -27,9 +32,7 @@ function parseCodes(htmldata, param) {
                     name: name};
   });
   var mongodb = require('./mongodb.js');
-  mongodb.removeall('codes', function() {
-    mongodb.insertmany('codes', sip_codes);
-  });
+  mongodb.insertmany('codes', sip_codes);
 }
 
 function getYearValues() {
@@ -48,7 +51,7 @@ function getYearValuesOfItem(codes) {
   var now = new Date();
   var today = '' + now.getFullYear() + (now.getMonth() + 1) + now.getDate();
   var code = codes[0].standard_code;
-  var targetPath = "/por_kor/m2/m2_1/m2_1_4/JHPKOR02001_04_chart.jsp?param=" + code + ",20141101," + today + ",s"
+  var targetPath = "/por_kor/m2/m2_1/m2_1_4/JHPKOR02001_04_chart.jsp?param=" + code + ",20101101," + today + ",s"
   console.log(targetPath);
   httprequest("krx.co.kr", targetPath, parseYearValues, codes);
 }
@@ -80,12 +83,28 @@ function parseYearValues(htmldata, codes) {
 
 function calculateMinMax() {
   var mongodb = require('./mongodb.js');
-  var year_begin = new Date();
-  year_begin.setDate(year_begin.getDate() - 365);
-  var month_begin = new Date();
-  month_begin.setDate(month_begin.getDate() - 30);
-  var week_begin = new Date();
-  week_begin.setDate(week_begin.getDate() - 7);
+  var date_range_index = [{title:"aweek",
+                           value: 7},
+                          {title:"2weeks",
+                           value: 14},
+                          {title:"amonth",
+                           value: 30},
+                          {title:"6months",
+                           value: 180},
+                          {title:"ayear",
+                           value: 365},
+                          {title:"2years",
+                           value: 730},
+                          {title:"3years",
+                           value: 1095},
+                          {title:"5years",
+                           value: 1825}];
+  var date_range = [];
+  for (i in date_range_index) {
+    var the_date = new Date();
+    the_date.setDate(the_date.getDate() - date_range_index[i].value);
+    date_range[i] = the_date;
+  }
   mongodb.removeall('history_min_max', function() {
     mongodb.findall('price_history', function(history) {
       // at most 2000 * 365 items
@@ -95,37 +114,23 @@ function calculateMinMax() {
         history[i].hg_pr = parseInt(history[i].hg_pr);
         history[i].lw_pr = parseInt(history[i].lw_pr);
         if (minmaxItem[code] == undefined) {
-          minmaxItem[code] = {
-            max_year: 0,
-            min_year: 99999999999,
-            max_month: 0,
-            min_month: 99999999999,
-            max_week: 0,
-            min_week: 99999999999
-          };
-        }
-        if (history[i].date > year_begin) {
-          if (minmaxItem[code].max_year < history[i].hg_pr) {
-            minmaxItem[code].max_year = history[i].hg_pr;
-          }
-          if (minmaxItem[code].min_year > history[i].lw_pr) {
-            minmaxItem[code].min_year = history[i].lw_pr;
+          minmaxItem[code] = {};
+          minmaxItem[code].data = [];
+          for (j in date_range_index) {
+            minmaxItem[code].data[j] = {};
+            minmaxItem[code].data[j].min = 9999999999;
+            minmaxItem[code].data[j].max = 0;
+            minmaxItem[code].data[j].range = date_range_index[j].title;
           }
         }
-        if (history[i].date > month_begin) {
-          if (minmaxItem[code].max_month < history[i].hg_pr) {
-            minmaxItem[code].max_month = history[i].hg_pr;
-          }
-          if (minmaxItem[code].min_month > history[i].lw_pr) {
-            minmaxItem[code].min_month = history[i].lw_pr;
-          }
-        }
-        if (history[i].date > week_begin) {
-          if (minmaxItem[code].max_week < history[i].hg_pr) {
-            minmaxItem[code].max_week = history[i].hg_pr;
-          }
-          if (minmaxItem[code].min_week > history[i].lw_pr) {
-            minmaxItem[code].min_week = history[i].lw_pr;
+        for (j in date_range_index) {
+          if (history[i].date > date_range[j]) {
+            if (minmaxItem[code].data[j].max < history[i].hg_pr) {
+              minmaxItem[code].data[j].max = history[i].hg_pr;
+            }
+            if (minmaxItem[code].data[j].min > history[i].lw_pr) {
+              minmaxItem[code].data[j].min = history[i].lw_pr;
+            }
           }
         }
       }
