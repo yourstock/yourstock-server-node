@@ -25,7 +25,7 @@ function getCodes(cb) {
 			fullcodes = [];
 			for(i in obj)
 				codes.push({ code: obj[i]['simple_code'].substr(1), fullcode: obj[i]['standard_code']});
-			cb(codes);;
+			cb(codes);
 		});
 	}).end();
 }
@@ -34,8 +34,9 @@ function getCurrentPrices(codes) {
 	
 	getLowestPrice();
 	
-	crawler(function () { 
-	compare(0);  
+	crawler(function () {
+//	console.log(minMaxData);
+	compare(0, 7);  
 	});
 
 	
@@ -176,20 +177,21 @@ function crawler(cb) {
 
 }
 
-function compare(percentage) {
+function compare(percentage, year) {
 	var theObj = [];
 	for (i in object){
 		for(j in minMaxData) {
-			if(object[i].fullcode == minMaxData[j].code && parseInt(object[i].price.replace(/,/g,"")) < ((1+percentage)*parseInt(minMaxData[j].min_year))) {
-//				console.log(parseInt(object[i].price.replace(/,/g, "")));
+			if(object[i].fullcode == minMaxData[j].code && parseInt(object[i].price.replace(/,/g,"")) < ((1+percentage)*parseInt(minMaxData[j].data[year].min))) {
+				console.log(parseInt(object[i].price.replace(/,/g, "")));
+				console.log(minMaxData[j].data[year].min);
 				theObj.push({ obj:object[i], data:minMaxData[j] });
 			}
 
-		}
+		}	
 	}
 	console.log(theObj);
-	//console.log(object);
-	//	console.log(minMaxData);
+//	console.log(object);
+//	console.log(minMaxData);
 }
 
 getCodes(getCurrentPrices);
