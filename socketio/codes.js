@@ -3,6 +3,8 @@ var codes = '';
 var curData = '';
 var object = [];
 var minMaxData;
+var rank = [];
+var rankPush = [];
 
 
 function getCodes(cb) {
@@ -35,13 +37,50 @@ function getCurrentPrices(codes) {
 	getLowestPrice();
 	
 	crawler(function () {
-//	console.log(minMaxData);
-	compare(0, 7);  
-	});
-
+	compare(0, 7); 
+	shilshigan((function() {
+		for(i in object) {
+			rankIndex = rank.indexOf(object[i].company);
+			if(rankIndex >=  0)
+				console.log(object[i]);
+		}
 	
+	}));
+	});
 }
 
+function shilshigan(cb) {
+	var request = require('request');
+	var url = 'http://www.naver.com';
+	
+	function execNaver() {
+		request(url, function(err, response, body) {
+			var cheerio = require('cheerio');
+			
+			if(err) return console.error(err);
+			
+			$ = cheerio.load(body);
+			$("ol li").each(function() {
+				rank.push($("a", this).attr("title"));
+			});
+			
+			request("http://www.daum.net", function(err, response, body) {
+			var cheerio = require('cheerio');
+			
+			if(err) return console.error(err);
+			
+			$ = cheerio.load(body);
+			$("ol.list_issue span.txt_issue").each(function() {
+				if(rank.indexOf($("a", this).text().trim()) == -1)
+					rank.push($("a", this).text().trim());
+			});
+			cb();
+			});
+		});
+	}
+			
+	execNaver();
+}
 
 function getFullCode(codes, code) {
 
@@ -83,33 +122,6 @@ function getPrice(id) {
 }
 
 function getLowestPrice() {
-
-/*		var options = {
-			host: "45.32.18.89",
-			path: '/history?code=' + id + '&range=365',
-			port: '3000',
-			ID: id
-		};
-		
-		http.get(options, function(response) {
-			var historyData = '';
-			response.on('data', function(chunk) {
-				historyData += chunk;
-		});
-		
-			response.on('end', function () {
-				var obj = JSON.parse(historyData);
-				console.log("CODE: " + options.ID + " : " + obj.lowest + " : ");
-
-			});
-//			response.on('error', function(e) {
-  //  			console.log("Got error: " + e.message);
-	//	    request.abort();
-    	//		setTimeout(getLowestPrice(id), 50);
-  	//		});
-		}).on('error', function(e) {
-			setTimeout(getLowestPrice(id), 50);
-		});	*/
 
 	var mongodb = require("../mongodb.js");
 
@@ -166,7 +178,7 @@ function crawler(cb) {
 			});
 			if(idx+1<length) 
 				setTimeout(function() {
-					execRequest(idx+1)}, 1000);
+					execRequest(idx+1)}, 100);
 			else
 				return cb();
 		});
@@ -182,17 +194,18 @@ function compare(percentage, year) {
 	for (i in object){
 		for(j in minMaxData) {
 			if(object[i].fullcode == minMaxData[j].code && parseInt(object[i].price.replace(/,/g,"")) < ((1+percentage)*parseInt(minMaxData[j].data[year].min))) {
-				console.log(parseInt(object[i].price.replace(/,/g, "")));
-				console.log(minMaxData[j].data[year].min);
+				//console.log(parseInt(object[i].price.replace(/,/g, "")));
+				//console.log(minMaxData[j].data[year].min);
 				theObj.push({ obj:object[i], data:minMaxData[j] });
 			}
 
 		}	
 	}
-	console.log(theObj);
+	//console.log(theObj);
 //	console.log(object);
 //	console.log(minMaxData);
 }
+
 
 getCodes(getCurrentPrices);
 
