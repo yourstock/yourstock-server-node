@@ -155,7 +155,6 @@ function calculateMinMax() {
 }
 
 function dbfix() {
-  var sleep = require('sleep');
   var mongodb = require('./mongodb.js');
   mongodb.findall('codes', function(codes) {
     insertSimpleCode(codes);
