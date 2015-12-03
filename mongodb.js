@@ -5,7 +5,8 @@ module.exports = {
   remove: removeSpecific,
   insertmany: insertMany,
   findall: findAll,
-  find: findSpecific
+  find: findSpecific,
+  update: updateSpecific
 }
 
 function removeAll(collection, cb) {
@@ -59,6 +60,25 @@ function findSpecific(collection, query, cb) {
       console.log("Retrieve all items in " + collection + " collection.");
       db.close();
       cb(results);
+    });
+  });
+}
+
+function updateSpecific(collection, query, setquery, cb) {
+  var MongoClient = require('mongodb').MongoClient;
+  var assert = require('assert');
+
+  var url = 'mongodb://localhost:27017/sip';
+  MongoClient.connect(url, function(err, db) {
+    assert.equal(null, err);
+    console.log("Connected correctly to server.");
+    db.collection(collection).updateOne(
+      query,
+      setquery,
+      function(err, results){
+        //console.log(results);
+        //setTimeout(function() {cb();}, 50);
+        process.nextTick(cb);
     });
   });
 }

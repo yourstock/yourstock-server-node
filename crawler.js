@@ -3,7 +3,8 @@
 module.exports = {
   getcodes: getCodes,
   getyearvalues: getYearValues,
-  calculateminmax: calculateMinMax
+  calculateminmax: calculateMinMax,
+  dbfix: dbfix
 }
 
 function getCodes() {
@@ -63,9 +64,11 @@ function parseYearValues(htmldata, codes) {
   var cheerio = require('cheerio'), $ = cheerio.load(htmldata);
   var date_item = [];
   var code = codes[0].standard_code;
+  var simple_code = codes[0].simple_code;
   codes = codes.slice(1);
   var tds = $("item").each(function(i, elem) {
     date_item[i] = {code: code,
+                    simple_code: simple_code,
                     date: new Date($(this).attr('work_dt')),
                     date_str: $(this).attr('work_dt'),
                     opn_pr: $(this).attr('isu_opn_pr'),
@@ -111,6 +114,7 @@ function calculateMinMax() {
       var minmaxItem = {};
       for (i in history) {
         var code = history[i].code;
+        var simple_code = history[i].simple_code;
         history[i].hg_pr = parseInt(history[i].hg_pr);
         history[i].lw_pr = parseInt(history[i].lw_pr);
         if (history[i].hg_pr == 0) {
@@ -120,6 +124,7 @@ function calculateMinMax() {
         if (minmaxItem[code] == undefined) {
           minmaxItem[code] = {};
           minmaxItem[code].data = [];
+          minmaxItem[code].simple_code = simple_code;
           for (j in date_range_index) {
             minmaxItem[code].data[j] = {};
             minmaxItem[code].data[j].min = 9999999999;
@@ -146,5 +151,27 @@ function calculateMinMax() {
       console.log("ResultArr length: " + resultArr.length);
       mongodb.insertmany('history_min_max', resultArr);
     });
+  });
+}
+
+function dbfix() {
+  var sleep = require('sleep');
+  var mongodb = require('./mongodb.js');
+  mongodb.findall('codes', function(codes) {
+    insertSimpleCode(codes);
+  });
+}
+function insertSimpleCode(codes) {
+  if (codes.length == 0)
+    return;
+  console.log(codes.length + "left");
+  code = codes[0];
+  codes = codes.slice(1);
+  var mongodb = require('./mongodb.js');
+  mongodb.update('history_min_max',
+    {code: code.standard_code},
+    {$set: {simple_code: code.simple_code}},
+    function(){
+      insertSimpleCode(codes);
   });
 }
