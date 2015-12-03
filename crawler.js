@@ -157,20 +157,18 @@ function calculateMinMax() {
 function dbfix() {
   var mongodb = require('./mongodb.js');
   mongodb.findall('codes', function(codes) {
-    insertSimpleCode(codes);
-  });
-}
-function insertSimpleCode(codes) {
-  if (codes.length == 0)
-    return;
-  console.log(codes.length + "left");
-  code = codes[0];
-  codes = codes.slice(1);
-  var mongodb = require('./mongodb.js');
-  mongodb.update('history_min_max',
-    {code: code.standard_code},
-    {$set: {simple_code: code.simple_code}},
-    function(){
-      insertSimpleCode(codes);
+    mongodb.findall('history_min_max', function(history) {
+      for (i in history) {
+        delete history[i]._id;
+        for (j in codes) {
+          if (codes[j].standard_code == history[i].code) {
+            history[i].simple_code = codes[j].simple_code;
+          }
+        }
+      }
+      mongodb.removeall('history_min_max', function() {
+        mongodb.insertmany('history_min_max', history);
+      });
+    });
   });
 }
