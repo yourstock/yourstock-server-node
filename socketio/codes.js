@@ -1,13 +1,15 @@
 var http = require('http');
 var codes = '';
 var curData = '';
-var object = [];
 var minMaxData;
 var rank = [];
 var rankPush = [];
+var object = [];
+var childProcess = require("child_process");
+var retrieveChild;
 
-
-function getCodes(cb) {
+module.exports = { 
+/*	getCodes: function (cb, emit) {
 
 
 	var options = {
@@ -27,26 +29,70 @@ function getCodes(cb) {
 			fullcodes = [];
 			for(i in obj)
 				codes.push({ code: obj[i]['simple_code'].substr(1), fullcode: obj[i]['standard_code']});
-			cb(codes);
+			cb(codes, emit);
 		});
 	}).end();
-}
+},*/
+	emit: function(emit) {
+		emit(object);
+	},	
 
-function getCurrentPrices(codes) {
+	getCurrentPrices: function (emit) {
 	
-	getLowestPrice();
-	
-	crawler(function () {
-	compare(0, 7); 
-	shilshigan((function() {
+	getLowestPrice(function() { 
+		
+		this.retrieveChild.on('message', function(msg){
+				console.log("Recv'd message from background.");
+				object = msg.content;
+//				combine2(object, minMaxData, function(bigObj) {
+//				});
+				
+			/*else {
+				if(object.length > 0)
+					emit(object);
+			}*/
+				
+
+		}.bind(this));	
+//	combine(object, minMaxData);	
+//	emit(object);
+//	compare(0, 7, object);
+/*	shilshigan((function() {
 		for(i in object) {
 			rankIndex = rank.indexOf(object[i].company);
 			if(rankIndex >=  0)
 				console.log(object[i]);
 		}
 	
-	}));
+	}));*/
+	
 	});
+	}	
+
+};
+
+function start() {
+	this.retrieveChild = childProcess.fork("./crawler");
+
+	var data = {
+		"start":true,
+		"interval": 10 * 1000,
+	}
+
+	this.retrieveChild.send(data);
+	
+	module.exports.getCurrentPrices();
+}
+
+function combine2(object, minMaxData, cb) {
+	var bigObj = []
+
+	for (i in object) 
+		for (j in minMaxData) 
+			if(object[i].code == minMaxData[j].simple_code.substr(1))
+				bigObj.push( { current: object[i], minmax: minMaxData[j] });
+		
+	cb(bigObj);
 }
 
 function shilshigan(cb) {
@@ -121,79 +167,50 @@ function getPrice(id) {
 		}).end();
 }
 
-function getLowestPrice() {
+function getLowestPrice(cb) {
 
 	var mongodb = require("../mongodb.js");
 
 	mongodb.findall("history_min_max", function (history) {
 		minMaxData = history;
+		cb();
 	});		
 
 
 }
 
-function crawler(cb) {
-	var request = require('request');
-	var code, price, company, change, fullcode;
-	var urls = [
-		'http://finance.daum.net/quote/all.daum?type=S&stype=P',
-		'http://finance.daum.net/quote/all.daum?type=S&stype=Q'
-	];
-	var length = urls.length;
-	var url;
+/*function combine(object, cb) {
+	var MongoClient = require('mongodb').MongoClient;
+	var assert = require('assert');
+	var bigObj = [];
 
-	function execRequest(idx) {
-		url = urls[idx];
-		request(url, function(err, response, body) {
-			var cheerio = require('cheerio');
+	var url = 'mongodb://localhost:27017/sip';
+	MongoClient.connect(url, function(err, db) {
+		assert.equal(null, err);
+		var cursor = db.collection("history_min_max", function(err, collection) {
+			
+			for( i in object) {
 
-			if(err) return console.error(err);
-
-			$ = cheerio.load(body);
-			$("table.gTable tr").each(function() {
-
-				company = $("td", this).eq(0).text();
-				if(company) {
-					price = $("td",this).eq(1).text();
-					change = $("td",this).eq(2).text();
-					code = $('a', this).eq(0).attr('href')
-					code = code.substr(code.lastIndexOf('=')+1);
-					fullcode = getFullCode(codes, code);
-				if(code.length < 7) 
-					object.push({ company : company, price:price, change:change, code:code, fullcode:fullcode});	
-				}
-				
-				company = $("td", this).eq(3).text();
-		
-				if(company) {
-					price = $("td",this).eq(4).text();
-					change = $("td",this).eq(5).text();
-					code = $('a', this).eq(1).attr('href')
-					code = code.substr(code.lastIndexOf('=')+1);
-					fullcode = getFullCode(codes, code);
-
-				if(code.length < 7)	
-					object.push({ company : company, price:price, change:change, code:code, fullcode:fullcode });
-				}
+				collection.find( { simple_code: 'A' + object[i].code }).toArray(function (err, data) {
+					assert.equal(err, null);
+					if(data)
+						bigObj.push( { current: object[i], minmax: data } );
+					else						db.close();
 			});
-			if(idx+1<length) 
-				setTimeout(function() {
-					execRequest(idx+1)}, 100);
-			else
-				return cb();
+			}
 		});
-	}
-	
-	execRequest(0);
-	
+		assert.equal(err, null);
+		cb(bigObj);
+	});
+}*/
 
-}
 
-function compare(percentage, year) {
+
+function compare(percentage, year ,object) {
 	var theObj = [];
 	for (i in object){
 		for(j in minMaxData) {
-			if(object[i].fullcode == minMaxData[j].code && parseInt(object[i].price.replace(/,/g,"")) < ((1+percentage)*parseInt(minMaxData[j].data[year].min))) {
+			if(object[i].price != '0' && object[i].code == minMaxData[j].simple_code.substr(1) && parseInt(object[i].price.replace(/,/g,"")) < ((1+percentage)*parseInt(minMaxData[j].data[year].min))) {
 				//console.log(parseInt(object[i].price.replace(/,/g, "")));
 				//console.log(minMaxData[j].data[year].min);
 				theObj.push({ obj:object[i], data:minMaxData[j] });
@@ -201,12 +218,12 @@ function compare(percentage, year) {
 
 		}	
 	}
-	//console.log(theObj);
+//	console.log(theObj);
 //	console.log(object);
 //	console.log(minMaxData);
 }
 
 
-getCodes(getCurrentPrices);
+//module.exports.getCurrentPrices();
 
-
+start();
