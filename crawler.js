@@ -4,7 +4,9 @@ module.exports = {
   getcodes: getCodes,
   getyearvalues: getYearValues,
   calculateminmax: calculateMinMax,
-  dbfix: dbfix
+  dbfix: dbfix,
+  updatedayvalue: updateDayValue,
+  isdateexist: isDateExist,
 }
 
 function getCodes() {
@@ -12,11 +14,11 @@ function getCodes() {
   var mongodb = require('./mongodb.js');
   mongodb.removeall('codes', function() {
     // all
-    //httprequest("krx.co.kr", "/por_kor/popup/JHPKOR13008.jsp?charOrder=0&mkt_typ=S&isu_cd=&shrt_isu_cd=&kor_isu_nm=&indx_ind_cd=&market_gubun=allVal&word=&x=27&y=10", parseCodes, 0);
+    //httprequest("www.krx.co.kr", "/por_kor/popup/JHPKOR13008.jsp?charOrder=0&mkt_typ=S&isu_cd=&shrt_isu_cd=&kor_isu_nm=&indx_ind_cd=&market_gubun=allVal&word=&x=27&y=10", parseCodes, 0);
     // Kospi(?) only
-    httprequest("krx.co.kr", "/por_kor/popup/JHPKOR13008.jsp?charOrder=0&mkt_typ=S&isu_cd=&shrt_isu_cd=&kor_isu_nm=&indx_ind_cd=&market_gubun=kospiVal&word=&x=27&y=10", parseCodes, 0);
+    httprequest("www.krx.co.kr", "/por_kor/popup/JHPKOR13008.jsp?charOrder=0&mkt_typ=S&isu_cd=&shrt_isu_cd=&kor_isu_nm=&indx_ind_cd=&market_gubun=kospiVal&word=&x=27&y=10", parseCodes, 0);
     // Kosdaq only
-    httprequest("krx.co.kr", "/por_kor/popup/JHPKOR13008.jsp?charOrder=0&mkt_typ=S&isu_cd=&shrt_isu_cd=&kor_isu_nm=&indx_ind_cd=&market_gubun=kosdaqVal&word=&x=27&y=10", parseCodes, 0);
+    httprequest("www.krx.co.kr", "/por_kor/popup/JHPKOR13008.jsp?charOrder=0&mkt_typ=S&isu_cd=&shrt_isu_cd=&kor_isu_nm=&indx_ind_cd=&market_gubun=kosdaqVal&word=&x=27&y=10", parseCodes, 0);
   });
 }
 
@@ -54,7 +56,7 @@ function getYearValuesOfItem(codes) {
   var code = codes[0].standard_code;
   var targetPath = "/por_kor/m2/m2_1/m2_1_4/JHPKOR02001_04_chart.jsp?param=" + code + ",20101101," + today + ",s"
   console.log(targetPath);
-  httprequest("krx.co.kr", targetPath, parseYearValues, codes);
+  httprequest("www.krx.co.kr", targetPath, parseYearValues, codes);
 }
 
 function parseYearValues(htmldata, codes) {
@@ -171,4 +173,92 @@ function dbfix() {
       });
     });
   });
+}
+
+function updateDayValue(date, cb) {
+  var mongodb = require('./mongodb.js');
+  mongodb.findall('codes', function(codes) {
+    var param = {date: date,
+                 cb: cb,
+                };
+    getDayValuesOfItem(codes, param);
+  });
+}
+
+function getDayValuesOfItem(codes, param) {
+  if (codes.length == 0) {
+    console.log("Crawl all data finished");
+    param.cb();
+    return;
+  }
+  param.codes = codes;
+  var date = param.date;
+  var httprequest = require('./httprequest.js').httpgetrequest;
+  var code = codes[0].simple_code;
+  var targetPath = "/api/item/getPriceDayList.nhn?code=" + code.substr(1,6);
+  console.log(targetPath);
+  httprequest("m.stock.naver.com", targetPath, parseDayValues, param);
+}
+
+function parseDayValues(htmldata, param) {
+  var codes = param.codes;
+  var date = param.date;
+  htmldata = htmldata.trim();
+  htmldata = "(" + htmldata + ")";
+  htmldata = eval(htmldata).result.list;
+  console.log("Data retrieved " + codes.length + " items left");
+  var daydata = 0;
+  for (i in htmldata) {
+    if (htmldata[i].dt == date) {
+      daydata = htmldata[i];
+      break;
+    }
+  }
+  var code = codes[0].standard_code;
+  var simple_code = codes[0].simple_code;
+  var date_str = date.substr(0,4) + "/" + date.substr(4,2) + "/" + date.substr(6,2);
+  if (daydata != 0) {
+    var date_item = {code: code,
+                     simple_code: simple_code,
+                     date: new Date(date_str),
+                     date_str: date_str,
+                     opn_pr: parseInt(daydata.ov),
+                     hg_pr: parseInt(daydata.hv),
+                     lw_pr: parseInt(daydata.lv),
+                     end_pr: parseInt(daydata.ncv),
+                     tot_tr_vl: parseInt(daydata.aq),
+                    };
+  }
+  param.codes = codes.slice(1);
+  var mongodb = require('./mongodb.js');
+  mongodb.remove('price_history', {code: code, date_str: date_str}, function() {
+    mongodb.insertmany('price_history', [date_item]);
+    getDayValuesOfItem(param.codes, param);
+  });
+  return;
+}
+
+function isDateExist(date, cb) {
+  var httprequest = require('./httprequest.js').httpgetrequest;
+  var targetPath = "/api/item/getPriceDayList.nhn?code=005930";
+  console.log(targetPath);
+  var param = {date:date, cb:cb};
+  httprequest("m.stock.naver.com", targetPath, checkDateExist, param);
+}
+
+function checkDateExist(htmldata, param) {
+  var date = param.date;
+  htmldata = htmldata.trim();
+  htmldata = "(" + htmldata + ")";
+  htmldata = eval(htmldata).result.list;
+  var daydata = 0;
+  for (i in htmldata) {
+    if (htmldata[i].dt == date) {
+      daydata = htmldata[i];
+      break;
+    }
+  }
+  if (daydata != 0) {
+    param.cb();
+  }
 }
