@@ -1,10 +1,16 @@
 var app = require('express')();
 var http = require('http').Server(app);
-var io = require('socket.io')(http);
+var io = require('socket.io')(http);;
 var codes = require('./codes');
+var theObj = [];
+var minMaxData = [];
 
 function emit(object) {
-	io.emit('chat message', object);
+	theObj = object;
+}
+
+function emitHistory(hist) {
+	minMaxData = hist;
 }
 
 app.get('/', function(req, res){
@@ -13,13 +19,18 @@ app.get('/', function(req, res){
 
 io.on('connection', function(socket){
   console.log('a user connected');
-  socket.on('disconnect', function(){
-  	console.log('user disconnected');
-  });
-  socket.on('chat message', function(msg){
-//	io.emit('chat message', msg);
+  socket.on('get codes', function(msg){
 	codes.emit(emit);
+	socket.emit('codes', theObj);
+
   });
+  socket.on('history', function(msg) {
+	codes.emitHistory(emitHistory);
+	socket.emit('historydata', minMaxData)
+  });
+  socket.on('register', function(object) {
+	codes.deviceRegister(object);
+	});
 });
 
 http.listen(9999, function(){

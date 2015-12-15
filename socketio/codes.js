@@ -1,40 +1,21 @@
 var http = require('http');
 var codes = '';
 var curData = '';
-var minMaxData;
+var minMaxData = {};
 var rank = [];
 var rankPush = [];
 var object = [];
 var childProcess = require("child_process");
 var retrieveChild;
-
+var jogun = [];
+var bigObj = [], deviceList = [];
 module.exports = { 
-/*	getCodes: function (cb, emit) {
-
-
-	var options = {
-		host: "45.32.18.89",
-		path: '/codes',
-		port: '3000',
-	};
-
-	http.request(options).on('response', function(response) {
-		response.on('data', function(chunk) {
-			codes += chunk;
-		});
-
-		response.on('end', function () {
-			var obj = JSON.parse(codes);
-			codes = [];
-			fullcodes = [];
-			for(i in obj)
-				codes.push({ code: obj[i]['simple_code'].substr(1), fullcode: obj[i]['standard_code']});
-			cb(codes, emit);
-		});
-	}).end();
-},*/
 	emit: function(emit) {
 		emit(object);
+	},
+	
+	emitHistory: function(emit) {
+		emit(minMaxData);
 	},	
 
 	getCurrentPrices: function (emit) {
@@ -44,32 +25,40 @@ module.exports = {
 		this.retrieveChild.on('message', function(msg){
 				console.log("Recv'd message from background.");
 				object = msg.content;
-//				combine2(object, minMaxData, function(bigObj) {
-//				});
-				
-			/*else {
-				if(object.length > 0)
-					emit(object);
-			}*/
 				
 
 		}.bind(this));	
-//	combine(object, minMaxData);	
-//	emit(object);
-//	compare(0, 7, object);
-/*	shilshigan((function() {
-		for(i in object) {
-			rankIndex = rank.indexOf(object[i].company);
-			if(rankIndex >=  0)
-				console.log(object[i]);
-		}
-	
-	}));*/
 	
 	});
 	}	
 
 };
+
+registerInfo = [  'AIzaSyCJ5pS1rQE3bmcuGo_Ix4VmrFB5vatnKgk' , 0, 0, 7];
+
+registerInfo2 = [ 'blahblah' , 0, 0, 6 ];
+
+function deviceRegister(id) {
+	deviceList[id[0]] = { iid : setInterval(function () { compare(id[2], id[1] , id[3], object, function(theO) {
+		if(deviceList[id[0]].repush == -1) {
+			for(i in theO) 
+				push(theO[i].obj.company, theO[i].obj.price, id[2], id[0]);
+			if(theO) 
+				deviceList[id[0]].repush = 1;
+		}
+	}) },  20000), repush: -1 };
+}
+
+function deviceUnregister(id) {
+	clearInterval(deviceList[id]);
+	deviceList[id] = null;
+}
+
+setInterval(function () {
+	for(i in deviceList) 
+		deviceList[i].repush = -1;
+	}, 60 * 60 * 1000);
+	 
 
 function start() {
 	this.retrieveChild = childProcess.fork("./crawler");
@@ -172,58 +161,156 @@ function getLowestPrice(cb) {
 	var mongodb = require("../mongodb.js");
 
 	mongodb.findall("history_min_max", function (history) {
-		minMaxData = history;
+		for(i in history) 
+			minMaxData[history[i].simple_code.substr(1)] = history[i];
 		cb();
 	});		
 
 
 }
 
-/*function combine(object, cb) {
-	var MongoClient = require('mongodb').MongoClient;
-	var assert = require('assert');
-	var bigObj = [];
 
-	var url = 'mongodb://localhost:27017/sip';
-	MongoClient.connect(url, function(err, db) {
-		assert.equal(null, err);
-		var cursor = db.collection("history_min_max", function(err, collection) {
-			
-			for( i in object) {
-
-				collection.find( { simple_code: 'A' + object[i].code }).toArray(function (err, data) {
-					assert.equal(err, null);
-					if(data)
-						bigObj.push( { current: object[i], minmax: data } );
-					else						db.close();
-			});
-			}
-		});
-		assert.equal(err, null);
-		cb(bigObj);
-	});
-}*/
-
-
-
-function compare(percentage, year ,object) {
+function compare(type, percentage, year ,object, cb) {
 	var theObj = [];
-	for (i in object){
-		for(j in minMaxData) {
-			if(object[i].price != '0' && object[i].code == minMaxData[j].simple_code.substr(1) && parseInt(object[i].price.replace(/,/g,"")) < ((1+percentage)*parseInt(minMaxData[j].data[year].min))) {
-				//console.log(parseInt(object[i].price.replace(/,/g, "")));
-				//console.log(minMaxData[j].data[year].min);
-				theObj.push({ obj:object[i], data:minMaxData[j] });
-			}
-
-		}	
+	if(type == 0) { //LOWEST PRICE
+		for (i in object){
+				if(object[i].price != '0' && minMaxData[object[i].code] &&  parseInt(object[i].price.replace(/,/g,"")) <= ((1+percentage)*parseInt(minMaxData[object[i].code].data[year].min))) 
+				theObj.push({ obj:object[i], data:minMaxData[object[i].code] });
+		}
 	}
-//	console.log(theObj);
-//	console.log(object);
-//	console.log(minMaxData);
+	else //HIGHEST PRICE 
+	{
+		for (i in object) {
+			if(object[i].price != '0' && minMaxData[object[i].code] && parseInt(object[i].price.replace(/,/g,"")) >= ((1+percentage)*parseInt(minMaxData[object[i].code].data[year].max)))
+				theObj.push({ obj: object[i], data:minMaxData[object[i].code] });
+		}
+	}
+	cb(theObj);
 }
 
 
 //module.exports.getCurrentPrices();
+function crawler(cb) {
+	var request = require('request');
+	var code, price, company, change, fullcode, type;
+	var urls = [
+		'http://finance.daum.net/quote/all.daum?type=S&stype=P',
+		'http://finance.daum.net/quote/all.daum?type=S&stype=Q'
+	];
+	var length = urls.length;
+	var url;
+	var objee = [];
+	function execRequest(idx) {
+		url = urls[idx];
+		request(url, function(err, response, body) {
+			var cheerio = require('cheerio');
 
-start();
+			if(err) return console.error(err);
+
+			$ = cheerio.load(body);
+			$("table.gTable tr").each(function() {
+
+				company = $("td", this).eq(0).text();
+				if(company) {
+					price = $("td",this).eq(1).text();
+					change = $("td",this).eq(2).text();
+					code = $('a', this).eq(0).attr('href')
+					code = code.substr(code.lastIndexOf('=')+1);
+					if(idx == 0)
+						type = "KOSPI";
+					else
+						type = "KOSDAQ";
+			
+				if(code.length < 7) 
+					objee.push({ company : company, price:price, change:change, code:code, type:type });	
+				}
+				
+				company = $("td", this).eq(3).text();
+		
+				if(company) {
+					price = $("td",this).eq(4).text();
+					change = $("td",this).eq(5).text();
+					code = $('a', this).eq(1).attr('href')
+					code = code.substr(code.lastIndexOf('=')+1);
+					if(idx == 0)
+						type = "KOSPI";
+					else
+						type = "KOSDAQ";
+
+				if(code.length < 7)	
+					objee.push({ company : company, price:price, change:change, code:code, type:type });
+				}
+			});
+			if(idx+1<length) 
+				setTimeout(function() {
+					execRequest(idx+1)}, 1);
+			else
+				return cb(objee);
+		});
+	}
+	
+	execRequest(0);
+}
+
+getLowestPrice(function() {});
+setInterval(crawler, 10000, function (objee) { object = objee;}); 
+deviceRegister(registerInfo);
+deviceRegister(registerInfo2);
+
+/*	setInterval(function () { compare(0, 0, 7, object, function(theO) {
+	for(i in theO)
+		push(theO[i].obj.company, theO[i].obj.price, 0);
+	}) },  10000);*/
+
+
+function push(companyName, price, type, apiKey) {
+
+	var gcm = require('node-gcm');
+	var fs = require('fs');
+
+	if(type == 0) 
+		var message = new gcm.Message({
+		    collapseKey: 'demo',
+		    delayWhileIdle: true,
+		    timeToLive: 3,
+		    data: {
+		        title: 'Low Price!',
+		        message: 'Low Price!',
+		    },
+		   notification: {
+			title: "Lowest Price!",
+			icon: "ic_launcher",
+			body: companyName + " is lowest price " + price
+		   }
+		});
+	else
+		var message = new gcm.Message({
+		    collapseKey: 'demo',
+		    delayWhileIdle: true,
+		    timeToLive: 3,
+		    data: {
+		        title: 'High Price!!',
+		        message: 'High price!',
+		    },
+		   notification: {
+			title: "Highest Price!",
+			icon: "ic_launcher",
+			body: companyName + " is highest price " + price
+		   }
+		});
+
+	
+
+	var server_api_key = apiKey;
+	var sender = new gcm.Sender(server_api_key);
+	var registrationIds = [];
+
+	var token = 'diUYi3UIAWc:APA91bHHpM3_0hv9x9OvrHVy-H9Dh2CDdF0l-js7Cn69XZiFyl5giRTFweAUfhb01DhUf9RwB2H__zckxfyOoPawbp5ef0q3TCUARXpdZ5MkArPwIvPZfiXy9MhFHfWGtcNjK8h7yW8B';
+	registrationIds.push(token);
+
+	sender.send(message, registrationIds, 4, function (err, result) {
+//	    console.log(result);
+	});
+
+}
+
