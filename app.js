@@ -51,4 +51,12 @@ app.get('/history_all', function(req, res) {
   });
 });
 
+app.get('/register', function(req, res) {
+  var data = {
+    reg_id: req.query.id,
+  };
+  console.log(data);
+  mongodb.insertmany('push_info', [data]);
+  res.send("done");
+});
 app.listen(3000);
