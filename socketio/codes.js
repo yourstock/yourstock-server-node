@@ -30,28 +30,38 @@ module.exports = {
 		}.bind(this));	
 	
 	});
-	}	
+	},
+	
+	deviceRegister: function (id) {
+		if(deviceList[id[0]]) 
+			 deviceUnregister(id[0]);	
+//		console.log(id);
+	 	deviceList[id[0]] = { repush: -1,  iid : setInterval(function () {
+			if(deviceList[id[0]].repush == -1) {
+			compare(id[1], id[2] , id[3], object, function(theO) {
+					for(i in theO) 
+						push(theO[i].obj.company, theO[i].obj.price, id[1], id[0]);
+					if(theO) 
+						deviceList[id[0]].repush = 1;
+			}) 
+			}},  20000) };
+	}
+	
 
 };
 
-registerInfo = [  'AIzaSyCJ5pS1rQE3bmcuGo_Ix4VmrFB5vatnKgk' , 0, 0, 7];
+
+
+/* token, min(0)/max(1), percentage, duration(0~7) */
+registerInfo = [ 'diUYi3UIAWc:APA91bHHpM3_0hv9x9OvrHVy-H9Dh2CDdF0l-js7Cn69XZiFyl5giRTFweAUfhb01DhUf9RwB2H__zckxfyOoPawbp5ef0q3TCUARXpdZ5MkArPwIvPZfiXy9MhFHfWGtcNjK8h7yW8B' , 0, 0, 7];
 
 registerInfo2 = [ 'blahblah' , 0, 0, 6 ];
 
-function deviceRegister(id) {
-	deviceList[id[0]] = { iid : setInterval(function () { compare(id[2], id[1] , id[3], object, function(theO) {
-		if(deviceList[id[0]].repush == -1) {
-			for(i in theO) 
-				push(theO[i].obj.company, theO[i].obj.price, id[2], id[0]);
-			if(theO) 
-				deviceList[id[0]].repush = 1;
-		}
-	}) },  20000), repush: -1 };
-}
 
 function deviceUnregister(id) {
-	clearInterval(deviceList[id]);
-	deviceList[id] = null;
+	clearInterval(deviceList[id].iid);
+	deviceList[id].iid = null;
+	deviceList[id].repush = -1;
 }
 
 setInterval(function () {
@@ -174,14 +184,14 @@ function compare(type, percentage, year ,object, cb) {
 	var theObj = [];
 	if(type == 0) { //LOWEST PRICE
 		for (i in object){
-				if(object[i].price != '0' && minMaxData[object[i].code] &&  parseInt(object[i].price.replace(/,/g,"")) <= ((1+percentage)*parseInt(minMaxData[object[i].code].data[year].min))) 
+				if(object[i].price != '0' && minMaxData[object[i].code] &&  parseInt(object[i].price.replace(/,/g,"")) <= ((1+((percentage-100)/100))*parseInt(minMaxData[object[i].code].data[year].min))) 
 				theObj.push({ obj:object[i], data:minMaxData[object[i].code] });
 		}
 	}
 	else //HIGHEST PRICE 
 	{
 		for (i in object) {
-			if(object[i].price != '0' && minMaxData[object[i].code] && parseInt(object[i].price.replace(/,/g,"")) >= ((1+percentage)*parseInt(minMaxData[object[i].code].data[year].max)))
+			if(object[i].price != '0' && minMaxData[object[i].code] && parseInt(object[i].price.replace(/,/g,"")) >= ((1-(percentage/100))*parseInt(minMaxData[object[i].code].data[year].max)))
 				theObj.push({ obj: object[i], data:minMaxData[object[i].code] });
 		}
 	}
@@ -254,8 +264,8 @@ function crawler(cb) {
 
 getLowestPrice(function() {});
 setInterval(crawler, 10000, function (objee) { object = objee;}); 
-deviceRegister(registerInfo);
-deviceRegister(registerInfo2);
+//deviceRegister(registerInfo);
+//deviceRegister(registerInfo2);
 
 /*	setInterval(function () { compare(0, 0, 7, object, function(theO) {
 	for(i in theO)
@@ -263,7 +273,7 @@ deviceRegister(registerInfo2);
 	}) },  10000);*/
 
 
-function push(companyName, price, type, apiKey) {
+function push(companyName, price, type, token) {
 
 	var gcm = require('node-gcm');
 	var fs = require('fs');
@@ -301,15 +311,12 @@ function push(companyName, price, type, apiKey) {
 
 	
 
-	var server_api_key = apiKey;
+	var server_api_key = 'AIzaSyCJ5pS1rQE3bmcuGo_Ix4VmrFB5vatnKgk';
 	var sender = new gcm.Sender(server_api_key);
 	var registrationIds = [];
 
-	var token = 'diUYi3UIAWc:APA91bHHpM3_0hv9x9OvrHVy-H9Dh2CDdF0l-js7Cn69XZiFyl5giRTFweAUfhb01DhUf9RwB2H__zckxfyOoPawbp5ef0q3TCUARXpdZ5MkArPwIvPZfiXy9MhFHfWGtcNjK8h7yW8B';
 	registrationIds.push(token);
-
 	sender.send(message, registrationIds, 4, function (err, result) {
-//	    console.log(result);
 	});
 
 }
