@@ -40,6 +40,12 @@ $ cd yourstock-server-node
 $ forever start app.js
 ```
 
+### Run actual server that interacts with client.
+```
+$ cd socketio
+$ node index.js
+```
+
 ## APIs
 Currently everything is serviced on port `3000`
 #### Retrieve all Company names and codes
